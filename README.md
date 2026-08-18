@@ -136,9 +136,11 @@ uvicorn app.main:app --reload
 - Swagger UI: <http://127.0.0.1:8000/docs>
 - Health check: <http://127.0.0.1:8000/health>
 
-## 5. 使用 curl 测试流
+## 5. Live integration test with curl
 
-`-N` 会关闭 curl 的输出缓冲，便于看到 token/delta 逐步到达。
+These requests go through the running FastAPI server and call the configured real
+OpenAI or Ollama provider. `-N` disables curl output buffering so streamed deltas
+are visible as they arrive.
 
 Chat：
 
@@ -169,47 +171,50 @@ event: done
 data: "[DONE]"
 ```
 
-使用 Ollama 时，metadata 会显示 `"provider":"ollama"` 和本地模型名。
+When Ollama is selected, metadata displays `"provider":"ollama"` and the local
+model name.
 
-## 6. 自动化测试（不会调用 OpenAI 或真实 Ollama）
+## 6. Unit tests with pytest (mocked providers)
 
-测试使用 fake factory/service 替换真实 OpenAI adapter：
+These tests validate routing, validation, factory selection, SSE formatting, and
+provider response parsing without spending API credits or requiring Ollama. The
+API endpoint tests replace the provider with a deterministic fake service only
+inside the pytest process.
 
 ```bash
 pytest -q
 ```
 
-覆盖内容包括：两个 endpoints、SSE、request validation、OpenAI/Ollama factory、缺少 OpenAI key，以及 Ollama NDJSON 流解析。
+Passing these tests proves the application logic behaves correctly; it does not
+prove that external model credentials, network access, or a local Ollama process
+are working.
 
-## 7. 什么是 Postman？
+## 7. Live end-to-end tests with Postman (real providers)
 
-Postman 是一个带图形界面的 API 测试工具。它让你选择 HTTP method、填写 URL、headers 和 JSON body，然后查看 status、headers 与 response；不需要自己写 curl。
+The Postman collection is not mocked. It sends HTTP requests to separately
+running Uvicorn processes, which instantiate the application's normal
+`LLMServiceFactory` and call the configured OpenAI API or local Ollama API. Code
+under `tests/` is not imported by Uvicorn, so pytest's fake dependency override
+cannot affect these requests.
 
-测试本项目：
-
-1. 安装并打开 Postman，选择 **New > HTTP Request**。
-2. Method 选 `POST`，URL 填 `http://127.0.0.1:8000/api/chat`。
-3. 在 **Headers** 添加 `Content-Type: application/json`。
-4. 在 **Body > raw > JSON** 填：
-
-```json
-{
-  "messages": [
-    {"role": "user", "content": "Hello! Introduce yourself in one sentence."}
-  ]
-}
-```
-
-5. 点击 **Send**。截图时保留 method、URL、request body 和 response，但不要显示 `.env` 或 API key。
-
-对于 streaming，curl 的 `-N` 通常最直观；Postman 可能根据版本把分块结果集中显示，但接口仍然是 SSE stream。
-
-四种 provider/service 组合的可导入 Collection 与完整操作说明在 [`postman/`](postman/README.md)：
+The four live cases are:
 
 ```text
 OpenAI Chat    OpenAI Reason
 Ollama Chat    Ollama Reason
 ```
+
+Each request verifies HTTP 200, SSE content type, the expected real provider,
+the expected service type, streamed output, `[DONE]`, and absence of an SSE error
+event. If a fake provider were returned, the collection assertion would fail.
+
+Import `postman/LLM_API_Homework.postman_collection.json` and follow the concise
+run instructions in [`postman/README.md`](postman/README.md). Do not store an
+OpenAI key in Postman; the OpenAI Uvicorn process reads it from the ignored local
+`.env` file.
+
+For homework evidence, capture the request URL and body, streamed response, and
+green Postman assertions without showing `.env` or the API key.
 
 ## 8. 动态切换 OpenAI 与 Ollama
 

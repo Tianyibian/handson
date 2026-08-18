@@ -1,21 +1,20 @@
-# Postman four-case test matrix
+# Postman live integration test matrix
 
-This collection tests all provider/service combinations without repeatedly editing `.env`.
+This collection makes real model requests for every provider/service combination.
+It does not use the fake services from the pytest suite.
 
 ## 1. Start both provider-specific servers
 
-Open Terminal 1:
+From the project root, open Terminal 1:
 
 ```bash
-cd "/Users/tianyi/找工作/handson"
 source .venv/bin/activate
 env LLM_PROVIDER=openai uvicorn app.main:app --port 8001
 ```
 
-Open Terminal 2:
+From the project root, open Terminal 2:
 
 ```bash
-cd "/Users/tianyi/找工作/handson"
 source .venv/bin/activate
 env LLM_PROVIDER=ollama uvicorn app.main:app --port 8002
 ```
@@ -47,7 +46,8 @@ You can open each request and click **Send**, or run the complete collection:
 3. Keep all four requests selected.
 4. Click **Run LLM API Homework - Provider Matrix**.
 
-Each request has seven automatic assertions:
+Each request reaches the real provider through FastAPI and has seven automatic
+assertions:
 
 - HTTP status is 200
 - response Content-Type is SSE

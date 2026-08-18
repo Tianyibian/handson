@@ -1,19 +1,24 @@
 # LLM API Integration Homework
 
-这是一个使用 FastAPI、OpenAI 和 Ollama 的流式 LLM 服务：
+This project implements a streaming LLM service with FastAPI, OpenAI, and Ollama:
 
-- `POST /api/chat`：普通对话
-- `POST /api/reason`：推理任务
-- 两个接口都接收标准 `messages`，并以 Server-Sent Events（SSE）流式返回
-- `LLM_PROVIDER=openai`：强制使用 OpenAI Responses API
-- `LLM_PROVIDER=ollama`：强制使用本机 Ollama `/api/chat`，不需要 API key
-- `LLM_PROVIDER=auto`：有真实 OpenAI key 时使用 OpenAI，否则 fallback 到 Ollama
-- OOP `LLMServiceFactory` 根据 provider 和 service type 创建对应 adapter
-- 已在 factory 中预留 `recommendation` service type
+- `POST /api/chat` provides standard conversational responses.
+- `POST /api/reason` handles reasoning-oriented tasks.
+- Both endpoints accept the standard `messages` format and stream Server-Sent
+  Events (SSE).
+- `LLM_PROVIDER=openai` forces the OpenAI Responses API.
+- `LLM_PROVIDER=ollama` forces the local Ollama `/api/chat` API and requires no
+  API key.
+- `LLM_PROVIDER=auto` selects OpenAI when a valid key is present and otherwise
+  falls back to Ollama.
+- The object-oriented `LLMServiceFactory` creates an adapter based on provider
+  and service type.
+- The factory includes a reserved `recommendation` service type for future use.
 
-> `/api/reason` 返回的是经过推理后的最终答案和可公开解释，不是模型的隐藏 chain-of-thought。
+> `/api/reason` returns a reasoned final answer and a concise user-facing
+> explanation, not the model's hidden chain of thought.
 
-## 1. 项目结构
+## 1. Project structure
 
 ```text
 app/
@@ -28,7 +33,7 @@ app/
 tests/                         # mocked tests; no API cost or model required
 ```
 
-调用关系：
+Request flow:
 
 ```text
 POST /api/chat or /api/reason
@@ -39,11 +44,11 @@ POST /api/chat or /api/reason
         -> FastAPI SSE stream
 ```
 
-## 2. 创建虚拟环境并安装依赖
+## 2. Set up the environment
 
-需要 Python 3.9 或更新版本。
+Python 3.9 or later is required.
 
-macOS/Linux：
+macOS/Linux:
 
 ```bash
 python3 -m venv .venv
@@ -51,7 +56,7 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-Windows PowerShell：
+Windows PowerShell:
 
 ```powershell
 py -m venv .venv
@@ -59,54 +64,57 @@ py -m venv .venv
 python -m pip install -r requirements.txt
 ```
 
-## 3. 配置 LLM provider
+## 3. Configure the LLM provider
 
 ### 3.1 OpenAI
 
-1. 登录 [OpenAI Platform](https://platform.openai.com/)。
-2. 在 API keys 页面创建一个新 key。
-3. 在项目根目录运行：
+1. Sign in to the [OpenAI Platform](https://platform.openai.com/).
+2. Create a new key on the API keys page.
+3. From the project root, run:
 
 ```bash
 cp .env.example .env
 ```
 
-4. 只在本机的 `.env` 中替换占位符：
+4. Replace the placeholder only in your local `.env` file:
 
 ```dotenv
 OPENAI_API_KEY=your_real_key_here
 ```
 
-安全规则：
+Security rules:
 
-- 不要把 key 写在 Python、README、curl 命令或截图里。
-- `.env` 已加入 `.gitignore`；提交前仍应运行 `git status` 检查。
-- 分享项目时分享 `.env.example`，绝不分享 `.env`。
-- 如果 key 曾被公开，立即在 OpenAI Platform 撤销并创建新 key。
-- API key 和 ChatGPT 订阅不是一回事；API 使用需要单独的 API 账户计费/额度。
+- Never place a key in Python source, the README, curl commands, or screenshots.
+- `.env` is listed in `.gitignore`; still verify with `git status` before every
+  commit.
+- Share `.env.example`, never `.env`.
+- If a key is exposed, revoke it immediately on the OpenAI Platform and create a
+  replacement.
+- API usage and ChatGPT subscriptions are separate; API access requires its own
+  account billing or credits.
 
-确认 `.env` 会被 Git 忽略：
+Confirm that Git ignores `.env`:
 
 ```bash
 git check-ignore -v .env
 ```
 
-并设置：
+Then configure:
 
 ```dotenv
 LLM_PROVIDER=openai
 ```
 
-### 3.2 Ollama（本地、无需 API key）
+### 3.2 Ollama (local, no API key required)
 
-安装并打开 Ollama 后，先下载模型：
+After installing and opening Ollama, download the model:
 
 ```bash
 ollama pull qwen3:4b
 ollama list
 ```
 
-在 `.env` 中设置：
+Configure `.env`:
 
 ```dotenv
 LLM_PROVIDER=ollama
@@ -117,21 +125,25 @@ OLLAMA_RECOMMENDATION_MODEL=qwen3:4b
 OLLAMA_CHAT_THINK=true
 ```
 
-如果 Ollama App 没有运行，可以在另一个 Terminal 中运行：
+If the Ollama app is not running, start it in another terminal:
 
 ```bash
 ollama serve
 ```
 
-对于默认的 Qwen 3，Chat、Reason 和 Recommendation 都让 Ollama 把 thinking 分离到专用字段；adapter 不会转发该字段，只流式返回最终答案。这样可避免 Qwen 在 `think=false` 时把思考标签混入普通内容。对于不支持 thinking 的其他模型，可以按模型行为把 `OLLAMA_CHAT_THINK` 改成 `false`。
+For the default Qwen 3 model, Chat, Reason, and Recommendation ask Ollama to
+separate thinking into its dedicated field. The adapter omits that field and
+streams only the final answer. This prevents Qwen from mixing thinking tags into
+normal content when `think=false`. For other models that do not support thinking,
+set `OLLAMA_CHAT_THINK=false` as appropriate for the model's behavior.
 
-## 4. 启动服务
+## 4. Run the server
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-打开：
+Open:
 
 - Swagger UI: <http://127.0.0.1:8000/docs>
 - Health check: <http://127.0.0.1:8000/health>
@@ -142,7 +154,7 @@ These requests go through the running FastAPI server and call the configured rea
 OpenAI or Ollama provider. `-N` disables curl output buffering so streamed deltas
 are visible as they arrive.
 
-Chat：
+Chat:
 
 ```bash
 curl -N -X POST http://127.0.0.1:8000/api/chat \
@@ -150,7 +162,7 @@ curl -N -X POST http://127.0.0.1:8000/api/chat \
   -d '{"messages":[{"role":"user","content":"Explain FastAPI in two sentences."}]}'
 ```
 
-Reason：
+Reason:
 
 ```bash
 curl -N -X POST http://127.0.0.1:8000/api/reason \
@@ -158,7 +170,7 @@ curl -N -X POST http://127.0.0.1:8000/api/reason \
   -d '{"messages":[{"role":"user","content":"If a train travels 120 km in 1.5 hours, what is its average speed? Explain briefly."}]}'
 ```
 
-返回格式示例：
+Example response format:
 
 ```text
 event: metadata
@@ -216,17 +228,20 @@ OpenAI key in Postman; the OpenAI Uvicorn process reads it from the ignored loca
 For homework evidence, capture the request URL and body, streamed response, and
 green Postman assertions without showing `.env` or the API key.
 
-## 8. 动态切换 OpenAI 与 Ollama
+## 8. Switch dynamically between OpenAI and Ollama
 
-配置级 fallback（推荐的自动模式）：
+Recommended configuration-level fallback:
 
 ```dotenv
 LLM_PROVIDER=auto
 ```
 
-Factory 在创建 service 时检查 `OPENAI_API_KEY`：key 缺失、为空或仍是模板占位符时选择 Ollama，否则选择 OpenAI。这个模式不会捕获 quota、billing、网络或生成过程中的错误后再切换 provider。
+When creating a service, the factory checks `OPENAI_API_KEY`. It selects Ollama
+when the key is missing, empty, or still a template placeholder; otherwise, it
+selects OpenAI. This configuration mode does not switch providers after quota,
+billing, network, or generation-time failures.
 
-使用 OpenAI：
+Use OpenAI:
 
 ```dotenv
 LLM_PROVIDER=openai
@@ -235,7 +250,7 @@ OPENAI_REASON_MODEL=gpt-5.6-terra
 OPENAI_REASONING_EFFORT=medium
 ```
 
-使用本机 Ollama：
+Use local Ollama:
 
 ```dotenv
 LLM_PROVIDER=ollama
@@ -244,4 +259,7 @@ OLLAMA_REASON_MODEL=qwen3:4b
 OLLAMA_CHAT_THINK=true
 ```
 
-每次修改 `.env` 后重启 Uvicorn。两个 provider 共用相同 endpoints、request schema 和 SSE response contract；切换时 Postman 请求无需修改。这正是 factory/OOP 在这里的价值。
+Restart Uvicorn after every `.env` change. Both providers share the same
+endpoints, request schema, and SSE response contract, so Postman requests do not
+need to change when switching providers. This interchangeable behavior is the
+main benefit of the factory and adapter design.

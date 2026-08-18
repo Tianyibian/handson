@@ -1,0 +1,15 @@
+# Use this workspace to collaborate
+workspace:
+  id: a4670594-3ccf-4cdd-8d79-770768e5fb46
+
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+
+cloudResources:
+  collections:
+    ../postman/collections/LLM API Homework - Provider Matrix: 87ee5bd4-c2ef-4975-8c44-6b1f1c6274dc
+
+# All resources in the `postman/` folder are automatically registered in Local View.
+# Point to additional files outside the `postman/` folder to register them individually. Example:
+#localResources:
+#  collections:
+#    - ../tests/E2E Test Collection/

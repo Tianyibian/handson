@@ -1,0 +1,30 @@
+$kind: http-request
+description: Standard conversational stream through OpenAI.
+url: "{{openai_base_url}}/api/chat"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "messages": [
+        {
+          "role": "user",
+          "content": "Reply with exactly: OpenAI chat test passed"
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      const body = pm.response.text();
+      pm.test('HTTP status is 200', () => pm.response.to.have.status(200));
+      pm.test('Response is SSE', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/event-stream'));
+      pm.test('Provider is OpenAI', () => pm.expect(body).to.include('\"provider\": \"openai\"'));
+      pm.test('Service is chat', () => pm.expect(body).to.include('\"service\": \"chat\"'));
+      pm.test('Stream has output', () => pm.expect(body).to.include('event: delta'));
+      pm.test('Stream completed', () => pm.expect(body).to.include('data: \"[DONE]\"'));
+      pm.test('Stream has no error event', () => pm.expect(body).to.not.include('event: error'));
+    language: text/javascript
+order: 1000

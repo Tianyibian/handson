@@ -1,0 +1,194 @@
+{
+  "info": {
+    "_postman_id": "c6472204-33cf-4b43-9cba-1100aabbccdd",
+    "name": "LLM API Homework - Provider Matrix",
+    "description": "Four streaming test cases: OpenAI Chat, OpenAI Reason, Ollama Chat, and Ollama Reason.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "openai_base_url",
+      "value": "http://127.0.0.1:8001"
+    },
+    {
+      "key": "ollama_base_url",
+      "value": "http://127.0.0.1:8002"
+    }
+  ],
+  "item": [
+    {
+      "name": "OpenAI",
+      "item": [
+        {
+          "name": "1 - OpenAI Chat",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text();",
+                  "pm.test('HTTP status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is SSE', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/event-stream'));",
+                  "pm.test('Provider is OpenAI', () => pm.expect(body).to.include('\\\"provider\\\": \\\"openai\\\"'));",
+                  "pm.test('Service is chat', () => pm.expect(body).to.include('\\\"service\\\": \\\"chat\\\"'));",
+                  "pm.test('Stream has output', () => pm.expect(body).to.include('event: delta'));",
+                  "pm.test('Stream completed', () => pm.expect(body).to.include('data: \\\"[DONE]\\\"'));",
+                  "pm.test('Stream has no error event', () => pm.expect(body).to.not.include('event: error'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Reply with exactly: OpenAI chat test passed\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{openai_base_url}}/api/chat",
+            "description": "Standard conversational stream through OpenAI."
+          }
+        },
+        {
+          "name": "2 - OpenAI Reason",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text();",
+                  "pm.test('HTTP status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is SSE', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/event-stream'));",
+                  "pm.test('Provider is OpenAI', () => pm.expect(body).to.include('\\\"provider\\\": \\\"openai\\\"'));",
+                  "pm.test('Service is reason', () => pm.expect(body).to.include('\\\"service\\\": \\\"reason\\\"'));",
+                  "pm.test('Stream has output', () => pm.expect(body).to.include('event: delta'));",
+                  "pm.test('Stream completed', () => pm.expect(body).to.include('data: \\\"[DONE]\\\"'));",
+                  "pm.test('Stream has no error event', () => pm.expect(body).to.not.include('event: error'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What is 144 divided by 12? Give the answer and one brief explanation.\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{openai_base_url}}/api/reason",
+            "description": "Reasoning stream through OpenAI."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ollama",
+      "item": [
+        {
+          "name": "3 - Ollama Chat",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text();",
+                  "pm.test('HTTP status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is SSE', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/event-stream'));",
+                  "pm.test('Provider is Ollama', () => pm.expect(body).to.include('\\\"provider\\\": \\\"ollama\\\"'));",
+                  "pm.test('Service is chat', () => pm.expect(body).to.include('\\\"service\\\": \\\"chat\\\"'));",
+                  "pm.test('Stream has output', () => pm.expect(body).to.include('event: delta'));",
+                  "pm.test('Stream completed', () => pm.expect(body).to.include('data: \\\"[DONE]\\\"'));",
+                  "pm.test('Stream has no error event', () => pm.expect(body).to.not.include('event: error'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Reply with exactly: Ollama chat test passed\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{ollama_base_url}}/api/chat",
+            "description": "Standard conversational stream through local Ollama."
+          }
+        },
+        {
+          "name": "4 - Ollama Reason",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text();",
+                  "pm.test('HTTP status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is SSE', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/event-stream'));",
+                  "pm.test('Provider is Ollama', () => pm.expect(body).to.include('\\\"provider\\\": \\\"ollama\\\"'));",
+                  "pm.test('Service is reason', () => pm.expect(body).to.include('\\\"service\\\": \\\"reason\\\"'));",
+                  "pm.test('Stream has output', () => pm.expect(body).to.include('event: delta'));",
+                  "pm.test('Stream completed', () => pm.expect(body).to.include('data: \\\"[DONE]\\\"'));",
+                  "pm.test('Stream has no error event', () => pm.expect(body).to.not.include('event: error'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What is 144 divided by 12? Give the answer and one brief explanation.\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{ollama_base_url}}/api/reason",
+            "description": "Reasoning stream through local Ollama."
+          }
+        }
+      ]
+    }
+  ]
+}

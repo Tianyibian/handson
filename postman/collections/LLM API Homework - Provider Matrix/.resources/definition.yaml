@@ -1,0 +1,5 @@
+$kind: collection
+description: "Four streaming test cases: OpenAI Chat, OpenAI Reason, Ollama Chat, and Ollama Reason."
+variables:
+  openai_base_url: http://127.0.0.1:8001
+  ollama_base_url: http://127.0.0.1:8002

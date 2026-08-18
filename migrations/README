@@ -1,0 +1,9 @@
+Alembic migration environment for the LLM Gateway API.
+
+Create a revision after changing ORM models:
+
+    alembic revision --autogenerate -m "describe the schema change"
+
+Review the generated migration, then apply it:
+
+    alembic upgrade head

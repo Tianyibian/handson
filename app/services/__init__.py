@@ -1,2 +1,1 @@
-"""LLM provider and factory layer."""
-
+"""Conversation persistence and LLM provider services."""

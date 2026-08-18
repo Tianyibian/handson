@@ -14,8 +14,10 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "LLM API Integration"
+    app_name: str = "LLM Gateway API"
     llm_provider: Literal["auto", "openai", "ollama"] = "auto"
+    database_url: str = "sqlite+aiosqlite:///./llm_gateway.db"
+    database_echo: bool = False
 
     openai_api_key: Optional[SecretStr] = None
     openai_base_url: Optional[str] = None

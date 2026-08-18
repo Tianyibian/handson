@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "c6472204-33cf-4b43-9cba-1100aabbccdd",
     "name": "LLM API - Provider Matrix",
-    "description": "Four streaming test cases: OpenAI Chat, OpenAI Reason, Ollama Chat, and Ollama Reason.",
+    "description": "Live provider checks plus a stateful multi-turn conversation flow backed by the database.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -13,6 +13,18 @@
     {
       "key": "ollama_base_url",
       "value": "http://127.0.0.1:8002"
+    },
+    {
+      "key": "conversation_base_url",
+      "value": "http://127.0.0.1:8001"
+    },
+    {
+      "key": "conversation_user_id",
+      "value": "postman-user"
+    },
+    {
+      "key": "conversation_id",
+      "value": ""
     }
   ],
   "item": [
@@ -49,7 +61,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Reply with exactly: OpenAI chat test passed\"\n    }\n  ]\n}",
+              "raw": "{\n  \"user_id\": \"provider-matrix-openai\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Reply with exactly: OpenAI chat test passed\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -136,7 +148,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Reply with exactly: Ollama chat test passed\"\n    }\n  ]\n}",
+              "raw": "{\n  \"user_id\": \"provider-matrix-ollama\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Reply with exactly: Ollama chat test passed\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -186,6 +198,174 @@
             },
             "url": "{{ollama_base_url}}/api/reason",
             "description": "Reasoning stream through local Ollama."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Stateful Conversation",
+      "item": [
+        {
+          "name": "1 - Create Conversation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "pm.test('Conversation was created', () => pm.response.to.have.status(201));",
+                  "pm.test('Response includes a conversation ID', () => pm.expect(data.id).to.be.a('string').and.not.empty);",
+                  "if (pm.response.code === 201 && data.id) { pm.collectionVariables.set('conversation_id', data.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{conversation_user_id}}\",\n  \"title\": \"Framework preference\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{conversation_base_url}}/api/conversations",
+            "description": "Create a database-backed conversation and save its ID as a collection variable."
+          }
+        },
+        {
+          "name": "2 - First Turn",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text();",
+                  "pm.test('HTTP status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is SSE', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/event-stream'));",
+                  "pm.test('Stream has output', () => pm.expect(body).to.include('event: delta'));",
+                  "pm.test('Stream completed', () => pm.expect(body).to.include('data: \"[DONE]\"'));",
+                  "pm.test('Stream has no error event', () => pm.expect(body).to.not.include('event: error'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{conversation_user_id}}\",\n  \"conversation_id\": \"{{conversation_id}}\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Remember that my preferred backend framework is FastAPI.\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{conversation_base_url}}/api/chat",
+            "description": "Persist the first real LLM turn in the conversation."
+          }
+        },
+        {
+          "name": "3 - Second Turn Recalls History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text();",
+                  "const assistantText = body.split(/\\r?\\n\\r?\\n/).filter(block => block.includes('event: delta')).map(block => { const line = block.split(/\\r?\\n/).find(item => item.startsWith('data: ')); return line ? JSON.parse(line.slice(6)).content : ''; }).join('');",
+                  "pm.test('HTTP status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is SSE', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/event-stream'));",
+                  "pm.test('Assistant recalls FastAPI', () => pm.expect(assistantText.toLowerCase()).to.include('fastapi'));",
+                  "pm.test('Stream completed', () => pm.expect(body).to.include('data: \"[DONE]\"'));",
+                  "pm.test('Stream has no error event', () => pm.expect(body).to.not.include('event: error'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{conversation_user_id}}\",\n  \"conversation_id\": \"{{conversation_id}}\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Which backend framework did I tell you I prefer?\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{conversation_base_url}}/api/chat",
+            "description": "Send only the new user turn; the server loads the first turn from the database."
+          }
+        },
+        {
+          "name": "4 - Verify Persisted Messages",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const messages = pm.response.json();",
+                  "pm.test('HTTP status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Two complete turns were persisted', () => pm.expect(messages).to.have.length(4));",
+                  "pm.test('Messages are ordered user/assistant/user/assistant', () => pm.expect(messages.map(item => item.role)).to.eql(['user', 'assistant', 'user', 'assistant']));",
+                  "pm.test('Stored messages belong to this conversation', () => pm.expect(messages.every(item => item.conversation_id === pm.collectionVariables.get('conversation_id'))).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{conversation_base_url}}/api/conversations/{{conversation_id}}/messages?user_id={{conversation_user_id}}",
+            "description": "Read both complete turns back from the database."
+          }
+        },
+        {
+          "name": "5 - Verify User Conversation List",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const conversations = pm.response.json();",
+                  "const conversationId = pm.collectionVariables.get('conversation_id');",
+                  "pm.test('HTTP status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Created conversation appears in the user list', () => pm.expect(conversations.some(item => item.id === conversationId)).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{conversation_base_url}}/api/users/{{conversation_user_id}}/conversations",
+            "description": "Verify get_user_conversations through the public API."
           }
         }
       ]

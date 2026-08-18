@@ -1,2 +1,1 @@
-"""FastAPI LLM integration homework package."""
-
+"""FastAPI package for the LLM Gateway API."""

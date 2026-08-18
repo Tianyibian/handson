@@ -1,7 +1,7 @@
 {
   "info": {
     "_postman_id": "c6472204-33cf-4b43-9cba-1100aabbccdd",
-    "name": "LLM API Homework - Provider Matrix",
+    "name": "LLM API - Provider Matrix",
     "description": "Four streaming test cases: OpenAI Chat, OpenAI Reason, Ollama Chat, and Ollama Reason.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },

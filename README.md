@@ -1,4 +1,4 @@
-# LLM API Integration Homework
+# LLM Gateway API
 
 This project implements a streaming LLM service with FastAPI, OpenAI, and Ollama:
 
@@ -220,13 +220,10 @@ Each request verifies HTTP 200, SSE content type, the expected real provider,
 the expected service type, streamed output, `[DONE]`, and absence of an SSE error
 event. If a fake provider were returned, the collection assertion would fail.
 
-Import `postman/LLM_API_Homework.postman_collection.json` and follow the concise
+Import `postman/LLM_API.postman_collection.json` and follow the concise
 run instructions in [`postman/README.md`](postman/README.md). Do not store an
 OpenAI key in Postman; the OpenAI Uvicorn process reads it from the ignored local
 `.env` file.
-
-For homework evidence, capture the request URL and body, streamed response, and
-green Postman assertions without showing `.env` or the API key.
 
 ## 8. Switch dynamically between OpenAI and Ollama
 

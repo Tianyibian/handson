@@ -25,8 +25,8 @@ Keep Ollama App running. The local model is `qwen3:4b`.
 
 1. In Postman, click **Import**.
 2. Choose **File**.
-3. Select `postman/LLM_API_Homework.postman_collection.json`.
-4. Open the imported **LLM API Homework - Provider Matrix** collection.
+3. Select `postman/LLM_API.postman_collection.json`.
+4. Open the imported **LLM API - Provider Matrix** collection.
 
 The collection already contains these variables:
 
@@ -44,7 +44,7 @@ You can open each request and click **Send**, or run the complete collection:
 1. Click the collection's **...** menu.
 2. Select **Run collection**.
 3. Keep all four requests selected.
-4. Click **Run LLM API Homework - Provider Matrix**.
+4. Click **Run LLM API - Provider Matrix**.
 
 Each request reaches the real provider through FastAPI and has seven automatic
 assertions:
@@ -65,7 +65,3 @@ Expected matrix:
 | OpenAI Reason | `http://127.0.0.1:8001/api/reason` | `openai` + `reason` |
 | Ollama Chat | `http://127.0.0.1:8002/api/chat` | `ollama` + `chat` |
 | Ollama Reason | `http://127.0.0.1:8002/api/reason` | `ollama` + `reason` |
-
-## 4. Homework screenshots
-
-For each request, capture method, URL, JSON body, SSE response, and the green test results. Never include `.env` or the OpenAI key in a screenshot.

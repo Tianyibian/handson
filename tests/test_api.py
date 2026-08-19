@@ -230,6 +230,104 @@ def test_failed_stream_does_not_persist_partial_turn(api_client) -> None:
     assert messages.json() == []
 
 
+def test_failed_first_stream_removes_auto_created_empty_conversation(api_client) -> None:
+    client, _ = api_client
+    app.dependency_overrides[get_llm_factory] = lambda: FailingFactory()
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "user_id": "user-1",
+            "messages": [{"role": "user", "content": "This call will fail"}],
+        },
+    )
+
+    assert response.status_code == 200
+    assert "event: error" in response.text
+    conversation_id = _sse_payload(response.text, "metadata")["conversation_id"]
+    conversations = client.get("/api/users/user-1/conversations")
+    assert conversations.status_code == 200
+    assert all(item["id"] != conversation_id for item in conversations.json())
+
+    messages = client.get(
+        f"/api/conversations/{conversation_id}/messages",
+        params={"user_id": "user-1"},
+    )
+    assert messages.status_code == 404
+
+
+def test_update_and_delete_conversation_enforce_ownership(api_client) -> None:
+    client, _ = api_client
+    created = client.post(
+        "/api/conversations",
+        json={"user_id": "owner", "title": "Original title"},
+    )
+    conversation_id = created.json()["id"]
+
+    turn = client.post(
+        "/api/chat",
+        json={
+            "user_id": "owner",
+            "conversation_id": conversation_id,
+            "messages": [{"role": "user", "content": "Persist this turn"}],
+        },
+    )
+    assert 'data: "[DONE]"' in turn.text
+
+    unauthorized_update = client.patch(
+        f"/api/conversations/{conversation_id}",
+        json={"user_id": "another-user", "title": "Stolen title"},
+    )
+    assert unauthorized_update.status_code == 404
+
+    updated = client.patch(
+        f"/api/conversations/{conversation_id}",
+        json={"user_id": "owner", "title": "  Updated title  "},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["title"] == "Updated title"
+
+    unauthorized_delete = client.delete(
+        f"/api/conversations/{conversation_id}",
+        params={"user_id": "another-user"},
+    )
+    assert unauthorized_delete.status_code == 404
+
+    messages_before_delete = client.get(
+        f"/api/conversations/{conversation_id}/messages",
+        params={"user_id": "owner"},
+    )
+    assert len(messages_before_delete.json()) == 2
+
+    deleted = client.delete(
+        f"/api/conversations/{conversation_id}",
+        params={"user_id": "owner"},
+    )
+    assert deleted.status_code == 204
+    assert deleted.content == b""
+
+    messages_after_delete = client.get(
+        f"/api/conversations/{conversation_id}/messages",
+        params={"user_id": "owner"},
+    )
+    assert messages_after_delete.status_code == 404
+
+
+def test_update_conversation_rejects_blank_title(api_client) -> None:
+    client, _ = api_client
+    created = client.post(
+        "/api/conversations",
+        json={"user_id": "owner", "title": "Original title"},
+    )
+
+    response = client.patch(
+        f"/api/conversations/{created.json()['id']}",
+        json={"user_id": "owner", "title": "   "},
+    )
+
+    assert response.status_code == 422
+
+
 def test_reason_uses_reason_service(api_client) -> None:
     client, _ = api_client
     response = client.post(

@@ -8,8 +8,7 @@ OpenAI, and Ollama:
 - Both endpoints accept the standard `messages` format and stream Server-Sent
   Events (SSE).
 - Async SQLAlchemy persists conversations and complete user/assistant turns.
-- Conversation endpoints create threads, list a user's threads, and read stored
-  messages.
+- Conversation endpoints create, rename, delete, list, and read stored threads.
 - `LLM_PROVIDER=openai` forces the OpenAI Responses API.
 - `LLM_PROVIDER=ollama` forces the local Ollama `/api/chat` API and requires no
   API key.
@@ -53,6 +52,11 @@ POST /api/chat
         -> ConversationService -> atomically save the completed turn
         -> FastAPI SSE [DONE]
 ```
+
+If the first LLM stream fails after `/api/chat` automatically creates a new
+conversation, the service removes that conversation if it is still empty.
+Explicitly created conversations and conversations with existing messages are
+never removed by this failure cleanup.
 
 ## 2. Set up the environment
 
@@ -233,9 +237,15 @@ Conversation management endpoints:
 
 ```text
 POST /api/conversations
+PATCH /api/conversations/{conversation_id}
+DELETE /api/conversations/{conversation_id}?user_id={user_id}
 GET  /api/users/{user_id}/conversations
 GET  /api/conversations/{conversation_id}/messages?user_id={user_id}
 ```
+
+The PATCH request accepts `{"user_id":"...","title":"New title"}` and the
+DELETE request returns HTTP 204. Both operations enforce conversation ownership;
+a missing conversation and a conversation owned by another user both return 404.
 
 `user_id` is a demonstration ownership boundary, not authentication. A production
 deployment should derive it from an authenticated identity such as a verified
@@ -244,10 +254,11 @@ JWT rather than trusting arbitrary client input.
 ## 6. Unit tests with pytest (mocked providers)
 
 These tests validate routing, validation, factory selection, SSE formatting,
-conversation ownership, atomic turn persistence, history ordering, Alembic
-upgrade/downgrade behavior, and provider response parsing. They use real
-temporary SQLite databases but replace the LLM provider with a deterministic
-fake service, so they spend no API credits and do not require Ollama.
+conversation ownership, atomic turn persistence, failed-first-turn cleanup,
+title updates, cascading deletion, history ordering, Alembic upgrade/downgrade
+behavior, and provider response parsing. They use real temporary SQLite
+databases but replace the LLM provider with a deterministic fake service, so
+they spend no API credits and do not require Ollama.
 
 ```bash
 pytest -q
@@ -265,7 +276,7 @@ running Uvicorn processes, which instantiate the application's normal
 under `tests/` is not imported by Uvicorn, so pytest's fake dependency override
 cannot affect these requests.
 
-The collection includes the four provider/service checks plus a five-request
+The collection includes the four provider/service checks plus a seven-request
 stateful conversation flow:
 
 ```text
@@ -277,6 +288,8 @@ First Turn
 Second Turn Recalls History
 Verify Persisted Messages
 Verify User Conversation List
+Update Conversation Title
+Delete Conversation
 ```
 
 Each request verifies HTTP 200, SSE content type, the expected real provider,

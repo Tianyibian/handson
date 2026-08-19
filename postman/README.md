@@ -33,7 +33,7 @@ The collection already contains these variables:
 ```text
 openai_base_url = http://127.0.0.1:8001
 ollama_base_url = http://127.0.0.1:8002
-conversation_base_url = http://127.0.0.1:8001
+conversation_base_url = http://127.0.0.1:8002
 conversation_user_id = postman-user
 conversation_id = (set automatically)
 ```
@@ -71,7 +71,7 @@ Expected matrix:
 
 ## 4. Run the stateful multi-turn flow
 
-Run the five requests under **Stateful Conversation** in their numbered order:
+Run the seven requests under **Stateful Conversation** in their numbered order:
 
 1. **Create Conversation** creates a database record and stores its ID in the
    `conversation_id` collection variable.
@@ -83,7 +83,13 @@ Run the five requests under **Stateful Conversation** in their numbered order:
    complete turns ordered as user, assistant, user, assistant.
 5. **Verify User Conversation List** checks that the new conversation appears in
    the user's conversation list.
+6. **Update Conversation Title** renames the conversation and verifies the
+   returned title and ID.
+7. **Delete Conversation** removes the conversation and its stored messages and
+   verifies HTTP 204.
 
-The default `conversation_base_url` uses the OpenAI server on port 8001. Set it
-to `http://127.0.0.1:8002` to run the same stateful flow through Ollama. Creating
-a new conversation at the beginning makes repeated collection runs independent.
+The default `conversation_base_url` uses the Ollama server on port 8002, so this
+stateful flow does not consume OpenAI API credits. Set it to
+`http://127.0.0.1:8001` only when you intentionally want to repeat the same flow
+through OpenAI. Creating a new conversation at the beginning makes repeated
+collection runs independent.

@@ -68,6 +68,19 @@ class ConversationCreateRequest(BaseModel):
         return value or None
 
 
+class ConversationUpdateRequest(BaseModel):
+    user_id: str = Field(min_length=1, max_length=255)
+    title: str = Field(min_length=1, max_length=200)
+
+    @field_validator("user_id", "title")
+    @classmethod
+    def fields_must_not_be_blank(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("value must not be blank")
+        return value
+
+
 class ConversationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

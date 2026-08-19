@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -18,8 +19,18 @@ def build_database(
 ) -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
     """Build an async engine and reusable session factory."""
     engine = create_async_engine(database_url, echo=echo)
+    if engine.url.get_backend_name() == "sqlite":
+        event.listen(engine.sync_engine, "connect", _enable_sqlite_foreign_keys)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     return engine, session_factory
+
+
+def _enable_sqlite_foreign_keys(dbapi_connection, connection_record) -> None:
+    """Enable SQLite foreign-key enforcement for every new connection."""
+    del connection_record
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 
 settings = get_settings()

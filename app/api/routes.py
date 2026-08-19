@@ -52,7 +52,9 @@ async def _stream_conversation(
     request: ConversationChatRequest,
     conversation_id: str,
     conversation_service: ConversationService,
+    delete_if_empty_on_failure: bool,
 ) -> AsyncIterator[str]:
+    turn_persisted = False
     yield encode_sse(
         "metadata",
         {
@@ -78,6 +80,7 @@ async def _stream_conversation(
             request.current_user_message.content,
             assistant_content,
         )
+        turn_persisted = True
         yield encode_sse("done", "[DONE]")
     except Exception as exc:
         logger.exception("Stateful LLM stream failed")
@@ -88,6 +91,15 @@ async def _stream_conversation(
                 "message": "LLM request or conversation persistence failed.",
             },
         )
+    finally:
+        if delete_if_empty_on_failure and not turn_persisted:
+            try:
+                await conversation_service.delete_conversation_if_empty(
+                    request.user_id,
+                    conversation_id,
+                )
+            except Exception:
+                logger.exception("Failed to remove an empty auto-created conversation")
 
 
 def _create_streaming_response(
@@ -139,6 +151,7 @@ async def chat(
         )
         conversation_id = conversation.id
         history: list[Message] = []
+        delete_if_empty_on_failure = True
     else:
         conversation_id = str(request.conversation_id)
         try:
@@ -155,6 +168,7 @@ async def chat(
             Message(role=message.role, content=message.content)
             for message in stored_messages
         ]
+        delete_if_empty_on_failure = False
 
     llm_messages = [*history, *request.messages]
     return StreamingResponse(
@@ -164,6 +178,7 @@ async def chat(
             request,
             conversation_id,
             conversation_service,
+            delete_if_empty_on_failure,
         ),
         media_type="text/event-stream",
         headers={

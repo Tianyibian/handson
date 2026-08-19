@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Literal, Sequence
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, exists, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.models import Conversation, ConversationMessage
@@ -126,6 +126,62 @@ class ConversationService:
             session.add_all([user_message, assistant_message])
 
         return user_message, assistant_message
+
+    async def delete_conversation(
+        self,
+        user_id: str,
+        conversation_id: str,
+    ) -> None:
+        """Delete an owned conversation and all of its messages."""
+        async with self._session_factory.begin() as session:
+            conversation = await self._require_owned_conversation(
+                session, user_id, conversation_id
+            )
+            await session.delete(conversation)
+
+    async def delete_conversation_if_empty(
+        self,
+        user_id: str,
+        conversation_id: str,
+    ) -> bool:
+        """Delete an owned conversation only when it has no stored messages."""
+        async with self._session_factory.begin() as session:
+            conversation = await self._require_owned_conversation(
+                session, user_id, conversation_id
+            )
+            has_messages = await session.scalar(
+                select(
+                    exists().where(
+                        ConversationMessage.conversation_id == conversation_id
+                    )
+                )
+            )
+            if has_messages:
+                return False
+
+            await session.delete(conversation)
+            return True
+
+    async def update_conversation_title(
+        self,
+        user_id: str,
+        conversation_id: str,
+        title: str,
+    ) -> Conversation:
+        """Update and return an owned conversation's title."""
+        normalized_title = title.strip()
+        if not normalized_title:
+            raise ValueError("Conversation title must not be blank.")
+
+        async with self._session_factory() as session:
+            conversation = await self._require_owned_conversation(
+                session, user_id, conversation_id
+            )
+            conversation.title = normalized_title
+            conversation.updated_at = datetime.now(timezone.utc)
+            await session.commit()
+            await session.refresh(conversation)
+            return conversation
 
     async def get_user_conversations(self, user_id: str) -> Sequence[Conversation]:
         """Return a user's conversations, most recently updated first."""

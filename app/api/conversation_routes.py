@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from app.db.session import async_session_factory
 from app.models.schemas import (
     ConversationCreateRequest,
     ConversationMessageResponse,
     ConversationResponse,
+    ConversationUpdateRequest,
 )
 from app.services.conversation_service import ConversationService
 from app.services.errors import ConversationNotFoundError
@@ -41,6 +42,44 @@ async def get_user_conversations(
 ) -> list[ConversationResponse]:
     conversations = await service.get_user_conversations(user_id)
     return [ConversationResponse.model_validate(item) for item in conversations]
+
+
+@router.patch(
+    "/conversations/{conversation_id}",
+    response_model=ConversationResponse,
+    summary="Update a conversation title",
+)
+async def update_conversation_title(
+    conversation_id: str,
+    request: ConversationUpdateRequest,
+    service: ConversationService = Depends(get_conversation_service),
+) -> ConversationResponse:
+    try:
+        conversation = await service.update_conversation_title(
+            request.user_id,
+            conversation_id,
+            request.title,
+        )
+    except ConversationNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return ConversationResponse.model_validate(conversation)
+
+
+@router.delete(
+    "/conversations/{conversation_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a conversation",
+)
+async def delete_conversation(
+    conversation_id: str,
+    user_id: str = Query(min_length=1, max_length=255),
+    service: ConversationService = Depends(get_conversation_service),
+) -> Response:
+    try:
+        await service.delete_conversation(user_id, conversation_id)
+    except ConversationNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get(

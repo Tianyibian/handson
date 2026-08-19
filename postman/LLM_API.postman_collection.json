@@ -16,7 +16,7 @@
     },
     {
       "key": "conversation_base_url",
-      "value": "http://127.0.0.1:8001"
+      "value": "http://127.0.0.1:8002"
     },
     {
       "key": "conversation_user_id",
@@ -366,6 +366,64 @@
             "header": [],
             "url": "{{conversation_base_url}}/api/users/{{conversation_user_id}}/conversations",
             "description": "Verify get_user_conversations through the public API."
+          }
+        },
+        {
+          "name": "6 - Update Conversation Title",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const conversation = pm.response.json();",
+                  "pm.test('HTTP status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Title was updated', () => pm.expect(conversation.title).to.eql('FastAPI preference'));",
+                  "pm.test('Conversation ID is unchanged', () => pm.expect(conversation.id).to.eql(pm.collectionVariables.get('conversation_id')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{conversation_user_id}}\",\n  \"title\": \"FastAPI preference\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{conversation_base_url}}/api/conversations/{{conversation_id}}",
+            "description": "Rename the owned conversation."
+          }
+        },
+        {
+          "name": "7 - Delete Conversation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Conversation was deleted', () => pm.response.to.have.status(204));",
+                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{conversation_base_url}}/api/conversations/{{conversation_id}}?user_id={{conversation_user_id}}",
+            "description": "Delete the conversation and its messages through the ownership-protected API."
           }
         }
       ]
